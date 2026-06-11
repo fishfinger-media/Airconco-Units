@@ -209,7 +209,7 @@ function unitCard(u: Unit, idx: number, group?: Unit[]): string {
   let sub = '';
   let extra = '';
   let dots = '';
-  let caps = `<span class="cap blue">❄ ${kw(u.coolKw)}</span><span class="cap">♨ ${kw(u.heatKw)}</span>`;
+  let caps = `<span class="cap blue">❄ ${kw(u.coolKw)}</span><span class="cap">♨︎ ${kw(u.heatKw)}</span>`;
   if (state.tab === 'indoor') {
     const i = u as IndoorUnit;
     sub = `${esc(i.range)} · ${esc(i.type)}`;
@@ -369,7 +369,7 @@ function openIndoor(u: IndoorUnit) {
   const od = u.outdoorModel ? outdoorByModel.get(u.outdoorModel) : undefined;
   if (od) {
     related += `<div class="related"><h3>Corresponding outdoor unit</h3>
-      <div class="related-list">${miniCard(od, 'outdoor', `${esc(od.splitType)} · ❄ ${kw(od.coolKw)} · ♨ ${kw(od.heatKw)}`)}</div></div>`;
+      <div class="related-list">${miniCard(od, 'outdoor', `${esc(od.splitType)} · ❄ ${kw(od.coolKw)} · ♨︎ ${kw(od.heatKw)}`)}</div></div>`;
   } else if (u.outdoorModel) {
     related += `<div class="related"><h3>Corresponding outdoor unit</h3>
       <p class="mini-sub">${esc(u.outdoorModel)} — not found in the outdoor unit list.</p></div>`;
