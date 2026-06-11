@@ -1,0 +1,78 @@
+---
+import { indoorUnits, outdoorUnits, multiUnits } from '../lib/data';
+import '../styles/global.css';
+
+const payload = JSON.stringify({
+  indoor: indoorUnits,
+  outdoor: outdoorUnits,
+  multi: multiUnits,
+}).replace(/</g, '\\u003c');
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Airconco Unit Directory</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="brand-row">
+          <a class="brand" href="/">
+            <img src="/logo.png" alt="The Air Conditioning Company" width="48" height="47" />
+            <span class="brand-text">Unit Directory</span>
+          </a>
+          <span class="brand-sub">internal use</span>
+        </div>
+        <nav class="tabs" id="tabs">
+          <button class="tab active" data-tab="indoor">Indoor Units <span class="count" id="count-indoor"></span></button>
+          <button class="tab" data-tab="outdoor">Outdoor Units <span class="count" id="count-outdoor"></span></button>
+          <button class="tab" data-tab="multi">Multi-Splits <span class="count" id="count-multi"></span></button>
+        </nav>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input id="search" type="search" placeholder="Search model, range, or kW (e.g. 4kw)…" autocomplete="off" />
+      </div>
+      <button class="btn-filters" id="btn-filters">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
+        Filters <span class="badge" id="filter-badge"></span>
+      </button>
+      <select id="sort" aria-label="Sort">
+        <option value="default">Sort: Default</option>
+        <option value="cool-asc">Cooling kW ↑</option>
+        <option value="cool-desc">Cooling kW ↓</option>
+        <option value="price-asc">Trade price ↑</option>
+        <option value="price-desc">Trade price ↓</option>
+        <option value="model">Model A–Z</option>
+      </select>
+    </div>
+
+    <div class="filter-panel" id="filter-panel">
+      <div class="filter-card" id="filter-card"></div>
+    </div>
+
+    <div class="results-meta" id="results-meta"></div>
+    <main class="grid" id="grid"></main>
+
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal" role="dialog" aria-modal="true" id="modal"></div>
+    </div>
+
+    <script type="application/json" id="unit-data" set:html={payload} />
+    <script src="../scripts/app.ts"></script>
+  </body>
+</html>
