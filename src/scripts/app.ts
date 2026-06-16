@@ -382,7 +382,7 @@ function openIndoor(u: IndoorUnit) {
     variants.length > 1 && new Set(variants.map((v) => v.colour)).size === variants.length
       ? `<div class="modal-colours">${variants
           .map((v) => `<button class="cbtn${v.id === u.id ? ' sel' : ''}" data-vid="${v.id}">
-            <span class="dot" style="background:${esc(v.colourHex)}"></span>${esc(v.colour)} · ${gbp(v.trade)}</button>`)
+            <span class="dot" style="background:${esc(v.colourHex)}"></span>${esc(v.colour)} <span class="cbtn-price">· ${gbp(v.trade)}</span></button>`)
           .join('')}</div>`
       : '';
   modal.innerHTML = modalShell(u, chips, specs, related, colourRow);
@@ -493,6 +493,27 @@ function closeModal() {
 
 backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
 
+// ---------- image lightbox ----------
+const lightboxBackdrop = $('#lightbox-backdrop');
+const lightboxImg = $('#lightbox-img') as HTMLImageElement;
+
+function openLightbox(src: string, alt: string) {
+  lightboxImg.src = src;
+  lightboxImg.alt = alt;
+  lightboxBackdrop.classList.add('open');
+}
+function closeLightbox() {
+  lightboxBackdrop.classList.remove('open');
+  lightboxImg.src = '';
+}
+
+modal.addEventListener('click', (e) => {
+  const img = (e.target as HTMLElement).closest('.modal-img img') as HTMLImageElement | null;
+  if (img) openLightbox(img.src, img.alt);
+});
+lightboxBackdrop.addEventListener('click', () => closeLightbox());
+$('#lightbox-close').addEventListener('click', (e) => { e.stopPropagation(); closeLightbox(); });
+
 // grid clicks (delegated so colour-dot swaps don't rebuild the whole grid)
 $('#grid').addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
@@ -508,7 +529,11 @@ $('#grid').addEventListener('click', (e) => {
   const card = t.closest('.card[data-idx]') as HTMLElement | null;
   if (card) openModalFor(selectedOf(visibleGroups[parseInt(card.dataset.idx!)]));
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (lightboxBackdrop.classList.contains('open')) closeLightbox();
+  else closeModal();
+});
 
 // ---------- tabs / toolbar ----------
 function switchTab(tab: Tab) {
@@ -537,6 +562,17 @@ $('#sort').addEventListener('change', (e) => {
 
 $('#btn-filters').addEventListener('click', () => {
   $('#filter-panel').classList.toggle('open');
+});
+
+// ---------- price toggle (hidden by default) ----------
+const PRICES_KEY = 'airconco-show-prices';
+const priceToggle = $('#toggle-prices') as HTMLInputElement;
+const showPrices = localStorage.getItem(PRICES_KEY) === '1';
+priceToggle.checked = showPrices;
+document.body.classList.toggle('prices-hidden', !showPrices);
+priceToggle.addEventListener('change', () => {
+  document.body.classList.toggle('prices-hidden', !priceToggle.checked);
+  localStorage.setItem(PRICES_KEY, priceToggle.checked ? '1' : '0');
 });
 
 // ---------- init ----------

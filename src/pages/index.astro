@@ -32,7 +32,6 @@ const payload = JSON.stringify({
             <img src="/logo.png" alt="The Air Conditioning Company" width="48" height="47" />
             <span class="brand-text">Unit Directory</span>
           </a>
-          <span class="brand-sub">internal use</span>
         </div>
         <nav class="tabs" id="tabs">
           <button class="tab active" data-tab="indoor">Indoor Units <span class="count" id="count-indoor"></span></button>
@@ -59,6 +58,11 @@ const payload = JSON.stringify({
         <option value="price-desc">Trade price ↓</option>
         <option value="model">Model A–Z</option>
       </select>
+      <label class="price-toggle" title="Show prices">
+        <input type="checkbox" id="toggle-prices" />
+        <span class="switch"></span>
+        £
+      </label>
     </div>
 
     <div class="filter-panel" id="filter-panel">
@@ -70,6 +74,11 @@ const payload = JSON.stringify({
 
     <div class="modal-backdrop" id="modal-backdrop">
       <div class="modal" role="dialog" aria-modal="true" id="modal"></div>
+    </div>
+
+    <div class="lightbox-backdrop" id="lightbox-backdrop">
+      <button class="lightbox-close" id="lightbox-close" aria-label="Close">✕</button>
+      <img id="lightbox-img" src="" alt="" />
     </div>
 
     <script type="application/json" id="unit-data" set:html={payload} />
