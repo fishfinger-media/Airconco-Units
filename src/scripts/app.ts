@@ -461,6 +461,8 @@ function openModalFor(u: Unit, kind: Tab = state.tab) {
   else if (kind === 'outdoor') openOutdoor(u as OutdoorUnit);
   else openMulti(u as MultiUnit);
 
+  history.pushState({ unit: u.id, kind }, '', `#${kind}/${encodeURIComponent(u.id)}`);
+
   modal.querySelector('#modal-close')!.addEventListener('click', closeModal);
   modal.querySelectorAll<HTMLButtonElement>('.cbtn').forEach((b) => {
     b.addEventListener('click', () => {
@@ -489,6 +491,7 @@ function openModalFor(u: Unit, kind: Tab = state.tab) {
 function closeModal() {
   backdrop.classList.remove('open');
   document.body.style.overflow = '';
+  history.pushState(null, '', `#${state.tab}`);
 }
 
 backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
@@ -575,15 +578,288 @@ priceToggle.addEventListener('change', () => {
   localStorage.setItem(PRICES_KEY, priceToggle.checked ? '1' : '0');
 });
 
+// ---------- product page ----------
+let productPageActive = false;
+
+function productSpecRow(label: string, val: string | null | undefined): string {
+  if (!val || val === '—') return '';
+  return `<div class="pp-spec"><div class="pp-s-label">${label}</div><div class="pp-s-val">${val}</div></div>`;
+}
+
+function productChips(unit: Unit, kind: Tab): string {
+  let html = `<span class="mchip navy">${esc(unit.manufacturer)}</span>`;
+  if (kind === 'indoor') {
+    const u = unit as IndoorUnit;
+    html += `<span class="mchip">${esc(u.range)}</span><span class="mchip">${esc(u.type)}</span>`;
+    if (u.group) html += `<span class="mchip">${esc(u.group)}</span>`;
+    if (u.multisplit) html += `<span class="mchip green">Multi-split compatible</span>`;
+  } else if (kind === 'outdoor') {
+    const u = unit as OutdoorUnit;
+    html += `<span class="mchip">${esc(u.splitType)}</span><span class="mchip">${esc(u.refrigerant)}</span>`;
+  } else {
+    const u = unit as MultiUnit;
+    html += `<span class="mchip">Multi Split</span><span class="mchip">Up to ${u.maxIndoor ?? '—'} indoor units</span><span class="mchip">${esc(u.refrigerant)}</span>`;
+  }
+  return html;
+}
+
+function productSpecs(unit: Unit, kind: Tab): string {
+  if (kind === 'indoor') {
+    const u = unit as IndoorUnit;
+    return productSpecRow('Cooling capacity', kw(u.coolKw)) +
+      productSpecRow('Heating capacity', kw(u.heatKw)) +
+      productSpecRow('Dimensions', dims(u)) +
+      productSpecRow('Air gap', u.airGap ? `${u.airGap} mm` : null) +
+      productSpecRow('Colour', u.colour ? `<span class="swatch" style="background:${esc(u.colourHex)}"></span>${esc(u.colour)}` : null) +
+      productSpecRow('Pipe — liquid', esc(u.pipeLiquid)) +
+      productSpecRow('Pipe — gas', esc(u.pipeGas));
+  }
+  if (kind === 'outdoor') {
+    const u = unit as OutdoorUnit;
+    return productSpecRow('Cooling capacity', kw(u.coolKw)) +
+      productSpecRow('Heating capacity', kw(u.heatKw)) +
+      productSpecRow('Dimensions', dims(u)) +
+      productSpecRow('Phase', esc(u.phase)) +
+      productSpecRow('Max fuse size', u.fuse ? `${esc(u.fuse)} A` : null) +
+      productSpecRow('Pipe — liquid', esc(u.pipeLiquid)) +
+      productSpecRow('Pipe — gas', esc(u.pipeGas)) +
+      productSpecRow('Pipe length', u.maxPipe != null ? `${u.minPipe ?? 0}–${u.maxPipe} m` : null) +
+      productSpecRow('Max height difference', u.maxHeightDiff != null ? `${u.maxHeightDiff} m` : null) +
+      productSpecRow('Additional charge', u.gramsPerM && u.gramsPerM !== '0' ? `${esc(u.gramsPerM)} g/m` : null) +
+      productSpecRow('Pre-charge', u.preChargeKg != null ? `${u.preChargeKg} kg${u.preChargeLen ? ` (to ${u.preChargeLen} m)` : ''}` : null);
+  }
+  const u = unit as MultiUnit;
+  const gasPipes = [u.pipeGas, u.pipeGas2, u.pipeGas3].filter(Boolean).join(', ');
+  return productSpecRow('Nominal cooling', kw(u.coolKw)) +
+    productSpecRow('Heating capacity', kw(u.heatKw)) +
+    productSpecRow('Max reduced duty', kw(u.maxDuty)) +
+    productSpecRow('Dimensions', dims(u)) +
+    productSpecRow('Phase', esc(u.phase)) +
+    productSpecRow('Max fuse size', u.fuse ? `${esc(u.fuse)} A` : null) +
+    productSpecRow('Pipe — liquid', u.pipeLiquid ? esc(u.pipeLiquid) : null) +
+    productSpecRow('Pipe — gas', gasPipes ? esc(gasPipes) : null) +
+    productSpecRow('Max pipe (per unit)', u.maxPipeInd != null ? `${u.maxPipeInd} m` : null) +
+    productSpecRow('Max pipe (total)', u.maxPipeTotal != null ? `${u.maxPipeTotal} m` : null) +
+    productSpecRow('Max height difference', u.maxHeightDiff != null ? `${u.maxHeightDiff} m` : null) +
+    productSpecRow('Pre-charge', u.preChargeKg != null ? `${u.preChargeKg} kg` : null);
+}
+
+function productRelated(unit: Unit, kind: Tab): string {
+  if (kind === 'indoor') {
+    const u = unit as IndoorUnit;
+    const od = u.outdoorModel ? outdoorByModel.get(u.outdoorModel) : undefined;
+    let html = '';
+    if (od) {
+      html += `<div class="pp-related"><h3>Corresponding outdoor unit</h3>
+        <div class="related-list">${miniCard(od, 'outdoor', `${esc(od.splitType)} · ❄ ${kw(od.coolKw)} · ♨︎ ${kw(od.heatKw)}`)}</div></div>`;
+    } else if (u.outdoorModel) {
+      html += `<div class="pp-related"><h3>Corresponding outdoor unit</h3>
+        <p class="mini-sub">${esc(u.outdoorModel)} — not found in the outdoor unit list.</p></div>`;
+    }
+    if (u.multisplit) {
+      html += `<div class="note-ms">✓ Works on multi-split systems</div>`;
+    }
+    return html;
+  }
+  if (kind === 'outdoor') {
+    const u = unit as OutdoorUnit;
+    const used = DATA.indoor.filter((i) => i.outdoorModel === u.model);
+    if (!used.length) return '';
+    return `<div class="pp-related"><h3>Pairs with ${used.length} indoor unit${used.length > 1 ? 's' : ''}</h3>
+      <div class="related-list">${used.map((i) => miniCard(i, 'indoor', `${esc(i.range)} · ${esc(i.type)} · ❄ ${kw(i.coolKw)}`)).join('')}</div></div>`;
+  }
+  const u = unit as MultiUnit;
+  const compat = DATA.indoor.filter((i) => i.manufacturer === u.manufacturer && i.multisplit);
+  if (!compat.length) return '';
+  return `<div class="pp-related"><h3>Compatible indoor units (${compat.length})</h3>
+    <div class="related-list">${compat.map((i) => miniCard(i, 'indoor', `${esc(i.range)} · ${esc(i.type)} · ❄ ${kw(i.coolKw)}`)).join('')}</div></div>`;
+}
+
+function showGridView() {
+  productPageActive = false;
+  document.body.classList.remove('product-page-mode');
+  const pp = document.getElementById('product-page');
+  if (pp) pp.remove();
+  document.title = 'Airconco Unit Directory';
+}
+
+function renderProductPage(unit: Unit, kind: Tab) {
+  productPageActive = true;
+  document.body.classList.add('product-page-mode');
+
+  const tabLabel = kind === 'indoor' ? 'Indoor Units' : kind === 'outdoor' ? 'Outdoor Units' : 'Multi-Splits';
+  document.title = `${unit.model} — Airconco Unit Directory`;
+
+  const links =
+    (unit.pdf ? `<a class="btn btn-primary" href="${esc(unit.pdf)}" target="_blank" rel="noopener">📄 Spec sheet (PDF)</a>` : '') +
+    (unit.web ? `<a class="btn btn-outline" href="${esc(unit.web)}" target="_blank" rel="noopener">Manufacturer page ↗</a>` : '');
+
+  const showPricesNow = localStorage.getItem(PRICES_KEY) === '1';
+
+  const html = `
+    <div id="product-page" class="product-page">
+      <div class="pp-inner">
+        <nav class="pp-breadcrumb">
+          <a href="#${kind}" class="pp-back" id="pp-back">← ${tabLabel}</a>
+        </nav>
+        <div class="pp-layout">
+          <div class="pp-hero">
+            <div class="pp-img-wrap" data-fallback='${NOIMG.replace(/'/g, '&#39;')}'>
+              ${unit.photo ? `<img src="${esc(unit.photo)}" alt="${esc(unit.model)}" id="pp-img">` : NOIMG}
+            </div>
+          </div>
+          <div class="pp-detail">
+            <div class="pp-chips">${productChips(unit, kind)}</div>
+            <h1 class="pp-title">${esc(unit.model)}</h1>
+            <div class="pp-spec-grid">${productSpecs(unit, kind)}</div>
+            <div class="price-box${showPricesNow ? '' : ' prices-hidden'}">
+              <div class="trade"><div class="pb-label">Trade price</div><div class="pb-val">${gbp(unit.trade)}</div></div>
+              <div><div class="pb-label">Retail price</div><div class="pb-val">${gbp(unit.retail)}</div></div>
+            </div>
+            ${links ? `<div class="pp-links">${links}</div>` : ''}
+            ${productRelated(unit, kind)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('pp-back')!.addEventListener('click', (e) => {
+    e.preventDefault();
+    showGridView();
+    state.tab = kind;
+    document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
+      t.classList.toggle('active', t.dataset.tab === state.tab)
+    );
+    history.pushState(null, '', `#${kind}`);
+    renderFilterPanel();
+    renderGrid();
+  });
+
+  document.getElementById('pp-img')?.addEventListener('click', () => {
+    if (unit.photo) openLightbox(unit.photo, unit.model);
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('#product-page .mini-card').forEach((el) => {
+    el.addEventListener('click', () => {
+      const k = el.dataset.kind as Tab;
+      const id = el.dataset.id!;
+      const pool = k === 'indoor' ? DATA.indoor : k === 'outdoor' ? DATA.outdoor : DATA.multi;
+      const target = (pool as Unit[]).find((x) => x.id === id);
+      if (target) {
+        showGridView();
+        state.tab = k;
+        document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
+          t.classList.toggle('active', t.dataset.tab === state.tab)
+        );
+        renderFilterPanel();
+        renderGrid();
+        openModalFor(target, k);
+      }
+    });
+  });
+}
+
+// ---------- popstate (browser back/forward) ----------
+window.addEventListener('popstate', () => {
+  const raw = location.hash.replace('#', '');
+  const slashIdx = raw.indexOf('/');
+  if (slashIdx !== -1) {
+    const kind = raw.slice(0, slashIdx) as Tab;
+    const id = decodeURIComponent(raw.slice(slashIdx + 1));
+    const pool = kind === 'indoor' ? DATA.indoor : kind === 'outdoor' ? DATA.outdoor : DATA.multi;
+    const unit = (pool as Unit[]).find((x) => x.id === id);
+    if (unit) {
+      if (productPageActive) {
+        // already showing a product page — swap to new one
+        showGridView();
+        state.tab = kind;
+        renderFilterPanel();
+        renderGrid();
+        renderProductPage(unit, kind);
+      } else {
+        // came from grid — open modal
+        if (state.tab !== kind) {
+          state.tab = kind;
+          document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
+            t.classList.toggle('active', t.dataset.tab === state.tab)
+          );
+          renderFilterPanel();
+          renderGrid();
+        }
+        if (kind === 'indoor') openIndoor(unit as IndoorUnit);
+        else if (kind === 'outdoor') openOutdoor(unit as OutdoorUnit);
+        else openMulti(unit as MultiUnit);
+        modal.querySelector('#modal-close')!.addEventListener('click', closeModal);
+        modal.querySelectorAll<HTMLButtonElement>('.cbtn').forEach((b) => {
+          b.addEventListener('click', () => {
+            const v = DATA.indoor.find((x) => x.id === b.dataset.vid);
+            if (v) { variantSel.set(groupKey(v), v.id); renderGrid(); openModalFor(v, 'indoor'); }
+          });
+        });
+        modal.querySelectorAll<HTMLButtonElement>('.mini-card').forEach((el) => {
+          el.addEventListener('click', () => {
+            const k = el.dataset.kind as Tab;
+            const tid = el.dataset.id!;
+            const p = k === 'indoor' ? DATA.indoor : k === 'outdoor' ? DATA.outdoor : DATA.multi;
+            const target = (p as Unit[]).find((x) => x.id === tid);
+            if (target) openModalFor(target, k);
+          });
+        });
+        backdrop.classList.add('open');
+        backdrop.scrollTop = 0;
+        document.body.style.overflow = 'hidden';
+      }
+      return;
+    }
+  }
+  // tab-only or empty hash
+  if (productPageActive) {
+    showGridView();
+  } else {
+    closeModal();
+  }
+  const tab = raw as Tab;
+  if (tab === 'indoor' || tab === 'outdoor' || tab === 'multi') {
+    state.tab = tab;
+    document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
+      t.classList.toggle('active', t.dataset.tab === state.tab)
+    );
+    renderFilterPanel();
+    renderGrid();
+  }
+});
+
 // ---------- init ----------
 $('#count-indoor').textContent = String(DATA.indoor.length);
 $('#count-outdoor').textContent = String(DATA.outdoor.length);
 $('#count-multi').textContent = String(DATA.multi.length);
 
-const hash = location.hash.replace('#', '') as Tab;
-if (hash === 'outdoor' || hash === 'multi') state.tab = hash;
+function parseInitialHash() {
+  const raw = location.hash.replace('#', '');
+  const slashIdx = raw.indexOf('/');
+  if (slashIdx !== -1) {
+    const kind = raw.slice(0, slashIdx) as Tab;
+    const id = decodeURIComponent(raw.slice(slashIdx + 1));
+    const pool = kind === 'indoor' ? DATA.indoor : kind === 'outdoor' ? DATA.outdoor : DATA.multi;
+    const unit = (pool as Unit[]).find((x) => x.id === id);
+    if (unit && (kind === 'indoor' || kind === 'outdoor' || kind === 'multi')) {
+      state.tab = kind;
+      return { unit, kind };
+    }
+  }
+  const tab = raw as Tab;
+  if (tab === 'outdoor' || tab === 'multi') state.tab = tab;
+  return null;
+}
+
+const initUnit = parseInitialHash();
 document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
   t.classList.toggle('active', t.dataset.tab === state.tab)
 );
 renderFilterPanel();
 renderGrid();
+if (initUnit) {
+  renderProductPage(initUnit.unit, initUnit.kind);
+}
