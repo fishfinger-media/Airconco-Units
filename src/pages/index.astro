@@ -104,9 +104,22 @@ const payload = JSON.stringify({
           <label class="admin-label" for="admin-file">CSV file</label>
           <input class="admin-input" id="admin-file" type="file" accept=".csv,text/csv" required />
 
-          <button class="admin-submit" id="admin-submit" type="submit">Upload</button>
-          <p class="admin-status" id="admin-status"></p>
+            <button class="admin-submit" id="admin-submit" type="submit">Upload</button>
         </form>
+
+        <!-- Rebuild progress shown after successful upload -->
+        <div class="admin-rebuild" id="admin-rebuild" style="display:none">
+          <div class="admin-rebuild-icon">
+            <svg class="admin-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </div>
+          <p class="admin-rebuild-label" id="admin-rebuild-label">Rebuilding site…</p>
+          <div class="admin-progress-track">
+            <div class="admin-progress-bar" id="admin-progress-bar"></div>
+          </div>
+          <p class="admin-rebuild-hint">The page will refresh automatically when ready.</p>
+        </div>
       </div>
     </div>
 
@@ -150,9 +163,42 @@ const payload = JSON.stringify({
         backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeAdmin(); });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAdmin(); });
 
-        function setStatus(msg: string, type: 'ok' | 'err' | '') {
+        const rebuildPanel = document.getElementById('admin-rebuild')!;
+        const progressBar  = document.getElementById('admin-progress-bar') as HTMLElement;
+        const rebuildLabel = document.getElementById('admin-rebuild-label')!;
+
+        function showError(msg: string) {
+          form.style.display = '';
+          rebuildPanel.style.display = 'none';
+          const status = document.getElementById('admin-status')!;
           status.textContent = msg;
-          status.className = 'admin-status' + (type ? ` admin-status--${type}` : '');
+          status.className = 'admin-status admin-status--err';
+          submit.disabled = false;
+        }
+
+        function startRebuildCountdown() {
+          form.style.display = 'none';
+          rebuildPanel.style.display = 'block';
+          progressBar.style.width = '0%';
+          rebuildLabel.textContent = 'Rebuilding site…';
+
+          const DURATION = 35_000;
+          const start = performance.now();
+
+          function tick() {
+            const elapsed = performance.now() - start;
+            const pct = Math.min((elapsed / DURATION) * 100, 100);
+            progressBar.style.width = `${pct}%`;
+
+            if (elapsed < DURATION) {
+              requestAnimationFrame(tick);
+            } else {
+              rebuildLabel.textContent = 'Done! Refreshing…';
+              setTimeout(() => window.location.reload(), 600);
+            }
+          }
+
+          requestAnimationFrame(tick);
         }
 
         form.addEventListener('submit', async (e) => {
@@ -164,7 +210,9 @@ const payload = JSON.stringify({
           if (!file) return;
 
           submit.disabled = true;
-          setStatus('Uploading…', '');
+          const status = document.getElementById('admin-status')!;
+          status.textContent = 'Uploading…';
+          status.className = 'admin-status';
 
           try {
             const buffer = await file.arrayBuffer();
@@ -179,15 +227,13 @@ const payload = JSON.stringify({
             const data = await res.json();
 
             if (res.ok) {
-              setStatus(data.message, 'ok');
               form.reset();
+              startRebuildCountdown();
             } else {
-              setStatus(data.error ?? 'Upload failed', 'err');
+              showError(data.error ?? 'Upload failed');
             }
           } catch {
-            setStatus('Network error. Please try again.', 'err');
-          } finally {
-            submit.disabled = false;
+            showError('Network error. Please try again.');
           }
         });
       })();

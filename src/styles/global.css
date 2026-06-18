@@ -834,3 +834,56 @@ input[type="file"].admin-input { padding: 7px 10px; cursor: pointer; }
 }
 .admin-status--ok  { color: var(--green); }
 .admin-status--err { color: #e53e3e; }
+
+/* ── Admin rebuild progress ─────────────────────────────────── */
+.admin-rebuild {
+  padding: 12px 0 4px;
+  text-align: center;
+}
+
+.admin-rebuild-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.admin-spinner {
+  width: 36px;
+  height: 36px;
+  color: var(--blue);
+  animation: admin-spin 1s linear infinite;
+}
+
+@keyframes admin-spin {
+  to { transform: rotate(360deg); }
+}
+
+.admin-rebuild-label {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--navy);
+  margin: 0 0 16px;
+}
+
+.admin-progress-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.admin-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--blue);
+  border-radius: 999px;
+  transition: width 0.1s linear;
+}
+
+.admin-rebuild-hint {
+  font-size: 12px;
+  color: var(--grey-text);
+  margin: 0;
+}
