@@ -1,5 +1,5 @@
 ---
-import { indoorUnits } from '../../lib/data';
+import { indoorUnits, outdoorUnits } from '../../lib/data';
 import { manufacturerFeatures, rangeFeatures, unitTypeFeatures } from '../../data/features';
 import { pickHeroImage } from '../../data/roomImages';
 
@@ -33,6 +33,30 @@ const rangeFeats = rangeFeatures[u.range] ?? [];
 const typeFeats = unitTypeFeatures[u.type] ?? [];
 const hasFeatures = mfrFeatures.length > 0 || rangeFeats.length > 0 || typeFeats.length > 0;
 
+const outdoor = u.outdoorModel
+  ? outdoorUnits.find((o) => o.model.trim() === u.outdoorModel.trim()) ?? null
+  : null;
+
+const outdoorDims = outdoor && outdoor.h && outdoor.w && outdoor.d
+  ? `${outdoor.h} × ${outdoor.w} × ${outdoor.d} mm`
+  : null;
+
+const outdoorSpecRows: { label: string; value: string }[] = outdoor ? [
+  { label: 'Model Number', value: outdoor.model },
+  outdoorDims ? { label: 'Dimensions (H×W×D)', value: outdoorDims } : null,
+  outdoor.refrigerant ? { label: 'Refrigerant', value: outdoor.refrigerant } : null,
+  outdoor.phase ? { label: 'Phase', value: outdoor.phase } : null,
+  outdoor.fuse ? { label: 'Max Fuse Size', value: `${outdoor.fuse} A` } : null,
+  outdoor.maxPipe != null ? { label: 'Max Pipe Length', value: `${outdoor.maxPipe} m` } : null,
+  outdoor.minPipe != null ? { label: 'Min Pipe Length', value: `${outdoor.minPipe} m` } : null,
+  outdoor.maxHeightDiff != null ? { label: 'Max Height Difference', value: `${outdoor.maxHeightDiff} m` } : null,
+  outdoor.preChargeLen != null ? { label: 'Pre-Charge Length', value: `${outdoor.preChargeLen} m` } : null,
+  outdoor.preChargeKg != null ? { label: 'Pre-Charge Weight', value: `${outdoor.preChargeKg} kg` } : null,
+  outdoor.gramsPerM ? { label: 'Additional Refrigerant', value: `${outdoor.gramsPerM} g/m` } : null,
+  outdoor.pipeLiquid ? { label: 'Connection – Liquid', value: outdoor.pipeLiquid } : null,
+  outdoor.pipeGas ? { label: 'Connection – Gas', value: outdoor.pipeGas } : null,
+].filter(Boolean) as { label: string; value: string }[] : [];
+
 const dims = u.h && u.w && u.d ? `${u.h} × ${u.w} × ${u.d} mm` : null;
 const specRows: { label: string; value: string; kw?: boolean }[] = [
   { label: 'Model Number', value: u.model },
@@ -41,9 +65,18 @@ const specRows: { label: string; value: string; kw?: boolean }[] = [
   dims ? { label: 'Dimensions (H×W×D)', value: dims } : null,
   u.airGap ? { label: 'Air Gap Required', value: `${u.airGap} mm` } : null,
   u.colour ? { label: 'Colour', value: u.colour } : null,
-  u.pipeLiquid ? { label: 'Refrigerant Connection – Liquid', value: u.pipeLiquid } : null,
-  u.pipeGas ? { label: 'Refrigerant Connection – Gas', value: u.pipeGas } : null,
   u.outdoorModel ? { label: 'Corresponding Outdoor Unit', value: u.outdoorModel } : null,
+  outdoor?.refrigerant ? { label: 'Refrigerant', value: outdoor.refrigerant } : null,
+  outdoor?.phase ? { label: 'Phase', value: outdoor.phase } : null,
+  outdoor?.fuse ? { label: 'Max Fuse Size', value: `${outdoor.fuse} A` } : null,
+  outdoor?.maxPipe != null ? { label: 'Max Pipe Length', value: `${outdoor.maxPipe} m` } : null,
+  outdoor?.minPipe != null ? { label: 'Min Pipe Length', value: `${outdoor.minPipe} m` } : null,
+  outdoor?.maxHeightDiff != null ? { label: 'Max Height Difference', value: `${outdoor.maxHeightDiff} m` } : null,
+  outdoor?.preChargeLen != null ? { label: 'Pre-Charge Length', value: `${outdoor.preChargeLen} m` } : null,
+  outdoor?.preChargeKg != null ? { label: 'Pre-Charge Weight', value: `${outdoor.preChargeKg} kg` } : null,
+  outdoor?.gramsPerM ? { label: 'Additional Refrigerant', value: `${outdoor.gramsPerM} g/m` } : null,
+  u.pipeLiquid ? { label: 'Connection – Liquid', value: u.pipeLiquid } : null,
+  u.pipeGas ? { label: 'Connection – Gas', value: u.pipeGas } : null,
 ].filter(Boolean) as { label: string; value: string; kw?: boolean }[];
 
 const pageTitle = `${u.range} ${u.type} | ${u.manufacturer}`;
@@ -345,13 +378,15 @@ const pageTitle = `${u.range} ${u.type} | ${u.manufacturer}`;
       /* ── Specs ─────────────────────────────── */
       .p-specs {
         padding: 72px var(--gutter);
+      }
+      .p-specs-inner {
         max-width: var(--max);
         margin: 0 auto;
       }
       .specs-heading {
         font-family: var(--F-demi);
         font-weight: 400;
-        font-size: clamp(1.4rem, 3vw, 2rem);
+        font-size: clamp(1.2rem, 2.5vw, 1.6rem);
         color: var(--navy);
         letter-spacing: -0.01em;
         margin-bottom: 32px;
@@ -486,14 +521,12 @@ const pageTitle = `${u.range} ${u.type} | ${u.manufacturer}`;
           <div class="kw-tiles">
             {u.coolKw != null && (
               <div class="kw-tile cool">
-                <span class="kw-tile-icon">❄</span>
                 <span class="kw-tile-val">{u.coolKw}</span>
                 <span class="kw-tile-label">kW Cooling</span>
               </div>
             )}
             {u.heatKw != null && (
               <div class="kw-tile">
-                <span class="kw-tile-icon">♨</span>
                 <span class="kw-tile-val">{u.heatKw}</span>
                 <span class="kw-tile-label">kW Heating</span>
               </div>
@@ -556,19 +589,21 @@ const pageTitle = `${u.range} ${u.type} | ${u.manufacturer}`;
 
     <!-- ── Specifications ────────────────────── -->
     <div class="p-specs">
-      <h2 class="specs-heading">Specifications</h2>
-      <div class="spec-grid">
-        {specRows.map((row) => (
-          <div class="spec-cell">
-            <div class="spec-label">{row.label}</div>
-            <div class={`spec-value${row.kw ? ' kw' : ''}`}>
-              {row.label === 'Colour' && (
-                <span class="spec-swatch" style={`background:${u.colourHex}`}></span>
-              )}
-              {row.value}
+      <div class="p-specs-inner">
+        <h2 class="specs-heading">Specifications</h2>
+        <div class="spec-grid">
+          {specRows.map((row) => (
+            <div class="spec-cell">
+              <div class="spec-label">{row.label}</div>
+              <div class={`spec-value${row.kw ? ' kw' : ''}`}>
+                {row.label === 'Colour' && (
+                  <span class="spec-swatch" style={`background:${u.colourHex}`}></span>
+                )}
+                {row.value}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
 
