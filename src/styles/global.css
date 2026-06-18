@@ -730,3 +730,107 @@ body.product-page-mode .header-inner { padding-bottom: 14px; }
   .pp-title { font-size: 24px; }
   .pp-spec-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ── Admin upload modal ─────────────────────────────────────── */
+.admin-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(33, 53, 82, 0.55);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.admin-modal {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 32px;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+}
+
+.admin-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--grey-text);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.admin-close:hover { background: var(--surface); color: var(--navy); }
+
+.admin-modal h2 {
+  font-family: var(--font-head);
+  font-size: 20px;
+  margin: 0 0 6px;
+  color: var(--navy);
+}
+
+.admin-hint {
+  font-size: 13px;
+  color: var(--grey-text);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.admin-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy-soft);
+  margin-bottom: 5px;
+  margin-top: 14px;
+}
+
+.admin-input {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border-dark);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--navy);
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.admin-input:focus { border-color: var(--blue); }
+input[type="file"].admin-input { padding: 7px 10px; cursor: pointer; }
+
+.admin-submit {
+  display: block;
+  width: 100%;
+  margin-top: 22px;
+  padding: 11px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-head);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.admin-submit:hover:not(:disabled) { background: var(--blue-dark); }
+.admin-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.admin-status {
+  margin-top: 12px;
+  font-size: 13px;
+  min-height: 18px;
+  text-align: center;
+}
+.admin-status--ok  { color: var(--green); }
+.admin-status--err { color: #e53e3e; }

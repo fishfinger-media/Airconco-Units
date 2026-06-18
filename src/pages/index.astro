@@ -29,7 +29,7 @@ const payload = JSON.stringify({
       <div class="header-inner">
         <div class="brand-row">
           <a class="brand" href="/">
-            <img src="/logo.png" alt="The Air Conditioning Company" width="48" height="47" />
+            <img src="/logo.png" alt="The Air Conditioning Company" width="48" height="47" id="admin-trigger" style="cursor:pointer" title="Admin" />
             <span class="brand-text">Unit Directory</span>
           </a>
         </div>
@@ -83,5 +83,114 @@ const payload = JSON.stringify({
 
     <script type="application/json" id="unit-data" set:html={payload} />
     <script src="../scripts/app.ts"></script>
+
+    <!-- Admin upload modal -->
+    <div class="admin-backdrop" id="admin-backdrop" aria-hidden="true">
+      <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+        <button class="admin-close" id="admin-close" aria-label="Close">✕</button>
+        <h2 id="admin-title">Import CSV</h2>
+        <p class="admin-hint">Upload a new CSV to replace data for the selected unit type. The site will rebuild automatically (~30 seconds).</p>
+        <form id="admin-form">
+          <label class="admin-label" for="admin-password">Password</label>
+          <input class="admin-input" id="admin-password" type="password" autocomplete="current-password" required />
+
+          <label class="admin-label" for="admin-type">Unit type</label>
+          <select class="admin-input" id="admin-type" required>
+            <option value="indoor">Indoor Units</option>
+            <option value="outdoor">Outdoor Units</option>
+            <option value="multi">Multi-Splits</option>
+          </select>
+
+          <label class="admin-label" for="admin-file">CSV file</label>
+          <input class="admin-input" id="admin-file" type="file" accept=".csv,text/csv" required />
+
+          <button class="admin-submit" id="admin-submit" type="submit">Upload</button>
+          <p class="admin-status" id="admin-status"></p>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const backdrop = document.getElementById('admin-backdrop')!;
+        const trigger  = document.getElementById('admin-trigger')!;
+        const closeBtn = document.getElementById('admin-close')!;
+        const form     = document.getElementById('admin-form') as HTMLFormElement;
+        const status   = document.getElementById('admin-status')!;
+        const submit   = document.getElementById('admin-submit') as HTMLButtonElement;
+
+        let clickCount = 0;
+        let clickTimer: ReturnType<typeof setTimeout> | null = null;
+
+        trigger.addEventListener('click', (e) => {
+          e.preventDefault();
+          clickCount++;
+          if (clickTimer) clearTimeout(clickTimer);
+          clickTimer = setTimeout(() => { clickCount = 0; }, 600);
+          if (clickCount >= 3) {
+            clickCount = 0;
+            openAdmin();
+          }
+        });
+
+        function openAdmin() {
+          backdrop.setAttribute('aria-hidden', 'false');
+          backdrop.style.display = 'flex';
+          (document.getElementById('admin-password') as HTMLInputElement).focus();
+        }
+
+        function closeAdmin() {
+          backdrop.setAttribute('aria-hidden', 'true');
+          backdrop.style.display = 'none';
+          form.reset();
+          setStatus('', '');
+        }
+
+        closeBtn.addEventListener('click', closeAdmin);
+        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeAdmin(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAdmin(); });
+
+        function setStatus(msg: string, type: 'ok' | 'err' | '') {
+          status.textContent = msg;
+          status.className = 'admin-status' + (type ? ` admin-status--${type}` : '');
+        }
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const password = (document.getElementById('admin-password') as HTMLInputElement).value;
+          const type     = (document.getElementById('admin-type') as HTMLSelectElement).value;
+          const file     = (document.getElementById('admin-file') as HTMLInputElement).files?.[0];
+
+          if (!file) return;
+
+          submit.disabled = true;
+          setStatus('Uploading…', '');
+
+          try {
+            const buffer = await file.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+            const res = await fetch('/api/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password, type, csv: base64 }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+              setStatus(data.message, 'ok');
+              form.reset();
+            } else {
+              setStatus(data.error ?? 'Upload failed', 'err');
+            }
+          } catch {
+            setStatus('Network error. Please try again.', 'err');
+          } finally {
+            submit.disabled = false;
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
