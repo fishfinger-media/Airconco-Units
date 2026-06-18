@@ -32,15 +32,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'CSV is empty' });
   }
 
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    return res.status(500).json({ error: 'BLOB_READ_WRITE_TOKEN is not configured in Vercel environment variables.' });
+  }
+
   try {
     await put(`${type}.csv`, csvText, {
       access: 'public',
-      allowOverwrite: true,
+      addRandomSuffix: false,
       contentType: 'text/csv',
+      token,
     });
   } catch (err) {
-    console.error('Blob upload error:', err);
-    return res.status(500).json({ error: 'Failed to store CSV' });
+    console.error('Blob upload error:', err?.message ?? err);
+    return res.status(500).json({ error: `Failed to store CSV: ${err?.message ?? 'unknown error'}` });
   }
 
   const hookUrl = process.env.DEPLOY_HOOK_URL;
