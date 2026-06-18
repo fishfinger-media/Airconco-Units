@@ -1,0 +1,602 @@
+---
+import { indoorUnits } from '../../lib/data';
+import { manufacturerFeatures, rangeFeatures, unitTypeFeatures } from '../../data/features';
+import { pickHeroImage } from '../../data/roomImages';
+
+export function getStaticPaths() {
+  return indoorUnits.map((u) => {
+    const variantKey = [u.manufacturer, u.range, u.type, u.coolKw, u.heatKw, u.h, u.w, u.d].join('|');
+    const variants = indoorUnits.filter((v) =>
+      [v.manufacturer, v.range, v.type, v.coolKw, v.heatKw, v.h, v.w, v.d].join('|') === variantKey
+    );
+    const isMultiColour = variants.length > 1 && new Set(variants.map((v) => v.colour)).size === variants.length;
+    return {
+      params: { model: encodeURIComponent(u.model) },
+      props: { unit: u, colourVariants: isMultiColour ? variants : [u] },
+    };
+  });
+}
+
+const { unit: u, colourVariants } = Astro.props;
+
+const heroUrl = pickHeroImage(u.type);
+
+const mfrLogo: Record<string, string> = {
+  Daikin: '/logos/daikin.svg',
+  'Mitsubishi Electric': '/logos/mitsubishi-electric.svg',
+  Fujitsu: '/logos/fujitsu.svg',
+};
+const logoSrc = mfrLogo[u.manufacturer] ?? '';
+
+const mfrFeatures = manufacturerFeatures[u.manufacturer] ?? [];
+const rangeFeats = rangeFeatures[u.range] ?? [];
+const typeFeats = unitTypeFeatures[u.type] ?? [];
+const hasFeatures = mfrFeatures.length > 0 || rangeFeats.length > 0 || typeFeats.length > 0;
+
+const dims = u.h && u.w && u.d ? `${u.h} × ${u.w} × ${u.d} mm` : null;
+const specRows: { label: string; value: string; kw?: boolean }[] = [
+  { label: 'Model Number', value: u.model },
+  { label: 'Cooling Capacity', value: u.coolKw != null ? `${u.coolKw} kW` : '—', kw: true },
+  { label: 'Heating Capacity', value: u.heatKw != null ? `${u.heatKw} kW` : '—', kw: true },
+  dims ? { label: 'Dimensions (H×W×D)', value: dims } : null,
+  u.airGap ? { label: 'Air Gap Required', value: `${u.airGap} mm` } : null,
+  u.colour ? { label: 'Colour', value: u.colour } : null,
+  u.pipeLiquid ? { label: 'Refrigerant Connection – Liquid', value: u.pipeLiquid } : null,
+  u.pipeGas ? { label: 'Refrigerant Connection – Gas', value: u.pipeGas } : null,
+  u.outdoorModel ? { label: 'Corresponding Outdoor Unit', value: u.outdoorModel } : null,
+].filter(Boolean) as { label: string; value: string; kw?: boolean }[];
+
+const pageTitle = `${u.range} ${u.type} | ${u.manufacturer}`;
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style is:global>
+      @font-face {
+        font-family: "FuturaPT-Demi";
+        font-display: swap;
+        src: url("/fonts/FuturaPT-Demi/font.woff2") format("woff2"),
+             url("/fonts/FuturaPT-Demi/font.woff") format("woff");
+      }
+      @font-face {
+        font-family: "FuturaPT-Book";
+        font-display: swap;
+        src: url("/fonts/FuturaPT-Book/font.woff2") format("woff2"),
+             url("/fonts/FuturaPT-Book/font.woff") format("woff");
+      }
+      @font-face {
+        font-family: "TTNormsPro";
+        font-style: normal; font-weight: normal; font-display: swap;
+        src: url("/fonts/TTNormsPro/normal_normal_normal.woff2") format("woff2"),
+             url("/fonts/TTNormsPro/normal_normal_normal.woff") format("woff");
+      }
+      @font-face {
+        font-family: "TTNormsPro";
+        font-style: normal; font-weight: bold; font-display: swap;
+        src: url("/fonts/TTNormsPro/normal_normal_bold.woff2") format("woff2"),
+             url("/fonts/TTNormsPro/normal_normal_bold.woff") format("woff");
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+      :root {
+        --blue: #009ef9;
+        --blue-tint: #deeeff;
+        --navy: #213552;
+        --navy-soft: #4d5d75;
+        --grey: #73859f;
+        --surface: #f4f6f8;
+        --border: #e4e8ef;
+        --white: #fff;
+        --F-demi: "FuturaPT-Demi", "Futura", sans-serif;
+        --F-book: "FuturaPT-Book", "Futura", sans-serif;
+        --T: "TTNormsPro", -apple-system, "Segoe UI", sans-serif;
+        --max: 1160px;
+        --gutter: clamp(20px, 5vw, 64px);
+        --radius: 4px;
+      }
+
+      body {
+        font-family: var(--T);
+        background: var(--white);
+        color: var(--navy);
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* ── Nav ───────────────────────────────── */
+      .p-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--white);
+        border-bottom: 1px solid var(--border);
+        padding: 14px var(--gutter);
+      }
+      .p-nav img {
+        height: 52px;
+        width: auto;
+        display: block;
+      }
+
+      /* ── Hero ──────────────────────────────── */
+      .p-hero {
+        height: 36rem;
+        overflow: hidden;
+        background: var(--navy);
+      }
+      .p-hero img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
+      }
+
+      /* ── Showcase ──────────────────────────── */
+      .p-showcase {
+        padding: 64px var(--gutter);
+        max-width: var(--max);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 60px;
+        align-items: flex-start;
+      }
+
+      /* Photo stage */
+      .photo-stage {
+        background: var(--white);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        aspect-ratio: 4 / 3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 32px;
+      }
+      .photo-stage img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        transition: opacity 0.2s;
+      }
+      .photo-stage img.switching { opacity: 0; }
+
+      /* Colour pills */
+      .colour-switcher {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      .colour-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: var(--radius);
+        border: 1.5px solid var(--border);
+        background: var(--white);
+        cursor: pointer;
+        font-family: var(--T);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--navy-soft);
+        transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+      }
+      .colour-pill .dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.1);
+        flex-shrink: 0;
+      }
+      .colour-pill:hover {
+        border-color: var(--navy-soft);
+        color: var(--navy);
+      }
+      .colour-pill.active {
+        border-color: var(--navy);
+        color: var(--navy);
+        box-shadow: 0 0 0 1px var(--navy);
+      }
+
+      /* Showcase info */
+      .showcase-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+      }
+      .showcase-mfr-logo {
+        height: 36px;
+        width: auto;
+        display: block;
+        opacity: 0.8;
+      }
+      .showcase-range {
+        font-family: var(--F-demi);
+        font-weight: 400;
+        font-size: clamp(2.4rem, 5vw, 3.8rem);
+        color: var(--navy);
+        letter-spacing: -0.02em;
+        line-height: 1.05;
+      }
+      .showcase-sub {
+        font-family: var(--F-book);
+        font-size: 1rem;
+        color: var(--grey);
+        letter-spacing: 0.03em;
+        margin-top: 6px;
+      }
+      .kw-tiles {
+        display: flex;
+        gap: 16px;
+        width: 100%;
+      }
+      .kw-tile {
+        flex: 1;
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .kw-tile-icon { font-size: 20px; line-height: 1; }
+      .kw-tile-val {
+        font-family: var(--F-demi);
+        font-weight: 400;
+        font-size: 1.7rem;
+        color: var(--navy);
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .kw-tile-label {
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--grey);
+        margin-top: 2px;
+      }
+      .kw-tile.cool .kw-tile-val { color: var(--blue); }
+
+      /* ── Features ──────────────────────────── */
+      .p-features {
+        background: var(--surface);
+        padding: 72px var(--gutter);
+      }
+      .p-features-inner {
+        max-width: var(--max);
+        margin: 0 auto;
+      }
+      .feature-group + .feature-group {
+        margin-top: 60px;
+        padding-top: 60px;
+        border-top: 1px solid var(--border);
+      }
+      .feature-group-heading {
+        font-family: var(--F-demi);
+        font-weight: 400;
+        font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+        color: var(--navy);
+        letter-spacing: -0.01em;
+        margin-bottom: 24px;
+      }
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+      }
+      .feature-card {
+        background: var(--white);
+        border-radius: var(--radius);
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        transition: box-shadow 0.2s, transform 0.2s;
+      }
+      .feature-card:hover {
+        box-shadow: 0 8px 32px rgba(33,53,82,0.1);
+        transform: translateY(-2px);
+      }
+      .feature-icon {
+        width: 44px;
+        height: 44px;
+        background: var(--blue-tint);
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .feature-icon svg {
+        width: 18px;
+        height: 18px;
+        stroke: var(--blue);
+        flex-shrink: 0;
+      }
+      .feature-title {
+        font-family: var(--F-demi);
+        font-weight: 400;
+        font-size: 1.05rem;
+        color: var(--navy);
+        line-height: 1.2;
+      }
+      .feature-body {
+        font-size: 0.875rem;
+        line-height: 1.65;
+        color: var(--navy-soft);
+        margin-top: auto;
+      }
+
+      /* ── Specs ─────────────────────────────── */
+      .p-specs {
+        padding: 72px var(--gutter);
+        max-width: var(--max);
+        margin: 0 auto;
+      }
+      .specs-heading {
+        font-family: var(--F-demi);
+        font-weight: 400;
+        font-size: clamp(1.4rem, 3vw, 2rem);
+        color: var(--navy);
+        letter-spacing: -0.01em;
+        margin-bottom: 32px;
+      }
+      .spec-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1px;
+        background: var(--border);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .spec-cell {
+        background: var(--white);
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .spec-label {
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--grey);
+      }
+      .spec-value {
+        font-family: var(--F-demi);
+        font-weight: 400;
+        font-size: 1rem;
+        color: var(--navy);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .spec-value.kw { color: var(--blue); }
+      .spec-swatch {
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(0,0,0,0.1);
+        flex-shrink: 0;
+      }
+
+      /* ── Footer ────────────────────────────── */
+      .p-footer {
+        background: var(--navy);
+        padding: 36px var(--gutter);
+        text-align: center;
+      }
+      .p-footer-text {
+        font-size: 12px;
+        line-height: 1.8;
+        color: rgba(255,255,255,0.45);
+      }
+      .p-footer-text a {
+        color: rgba(255,255,255,0.55);
+        text-decoration: none;
+      }
+      .p-footer-text a:hover {
+        color: rgba(255,255,255,0.8);
+      }
+
+      /* ── Responsive ────────────────────────── */
+      @media (max-width: 800px) {
+        .p-hero { height: 22rem; }
+        .p-showcase {
+          grid-template-columns: 1fr;
+          gap: 32px;
+          padding: 48px var(--gutter);
+        }
+        .feature-grid { grid-template-columns: 1fr 1fr; }
+        .p-footer { flex-wrap: wrap; gap: 24px; }
+      }
+      @media (max-width: 480px) {
+        .feature-grid { grid-template-columns: 1fr; }
+        .p-features { padding: 48px var(--gutter); }
+        .feature-group + .feature-group { margin-top: 40px; padding-top: 40px; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- ── Nav ──────────────────────────────── -->
+    <nav class="p-nav">
+      <img src="/logo.png" alt="The Air Conditioning Company" />
+    </nav>
+
+    <!-- ── Hero ─────────────────────────────── -->
+    <section class="p-hero">
+      {heroUrl
+        ? <img src={heroUrl} alt={`${u.range} installed`} />
+        : <div style="width:100%;height:100%;background:var(--navy)"></div>
+      }
+    </section>
+
+    <!-- ── Showcase ──────────────────────────── -->
+    <section class="p-showcase">
+
+      <!-- Photo + colour switcher -->
+      <div>
+        <div class="photo-stage">
+          <img id="unit-photo" src={u.photo || ''} alt={u.range} />
+        </div>
+        {colourVariants.length > 1 && (
+          <div class="colour-switcher" id="colour-switcher">
+            {colourVariants.map((v) => (
+              <button
+                class={`colour-pill${v.model === u.model ? ' active' : ''}`}
+                data-photo={v.photo}
+                data-model={v.model}
+                data-colour={v.colour}
+              >
+                <span class="dot" style={`background:${v.colourHex}`}></span>
+                {v.colour}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <!-- Range info -->
+      <div class="showcase-info">
+        {logoSrc && (
+          <img class="showcase-mfr-logo" src={logoSrc} alt={u.manufacturer} />
+        )}
+        <div>
+          <h1 class="showcase-range">{u.range}</h1>
+          <p class="showcase-sub">{u.manufacturer} · {u.type}</p>
+        </div>
+        {(u.coolKw != null || u.heatKw != null) && (
+          <div class="kw-tiles">
+            {u.coolKw != null && (
+              <div class="kw-tile cool">
+                <span class="kw-tile-icon">❄</span>
+                <span class="kw-tile-val">{u.coolKw}</span>
+                <span class="kw-tile-label">kW Cooling</span>
+              </div>
+            )}
+            {u.heatKw != null && (
+              <div class="kw-tile">
+                <span class="kw-tile-icon">♨</span>
+                <span class="kw-tile-val">{u.heatKw}</span>
+                <span class="kw-tile-label">kW Heating</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+    </section>
+
+    <!-- ── Features ────────────────────────── -->
+    {hasFeatures && (
+      <section class="p-features">
+        <div class="p-features-inner">
+          {mfrFeatures.length > 0 && (
+            <div class="feature-group">
+              <h2 class="feature-group-heading">About {u.manufacturer}</h2>
+              <div class="feature-grid">
+                {mfrFeatures.map((f) => (
+                  <div class="feature-card">
+                    <div class="feature-icon" set:html={f.icon} />
+                    <div class="feature-title">{f.title}</div>
+                    <div class="feature-body">{f.body}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {rangeFeats.length > 0 && (
+            <div class="feature-group">
+              <h2 class="feature-group-heading">The {u.range} Range</h2>
+              <div class="feature-grid">
+                {rangeFeats.map((f) => (
+                  <div class="feature-card">
+                    <div class="feature-icon" set:html={f.icon} />
+                    <div class="feature-title">{f.title}</div>
+                    <div class="feature-body">{f.body}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {typeFeats.length > 0 && (
+            <div class="feature-group">
+              <h2 class="feature-group-heading">{u.type}</h2>
+              <div class="feature-grid">
+                {typeFeats.map((f) => (
+                  <div class="feature-card">
+                    <div class="feature-icon" set:html={f.icon} />
+                    <div class="feature-title">{f.title}</div>
+                    <div class="feature-body">{f.body}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    )}
+
+    <!-- ── Specifications ────────────────────── -->
+    <div class="p-specs">
+      <h2 class="specs-heading">Specifications</h2>
+      <div class="spec-grid">
+        {specRows.map((row) => (
+          <div class="spec-cell">
+            <div class="spec-label">{row.label}</div>
+            <div class={`spec-value${row.kw ? ' kw' : ''}`}>
+              {row.label === 'Colour' && (
+                <span class="spec-swatch" style={`background:${u.colourHex}`}></span>
+              )}
+              {row.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- ── Footer ────────────────────────────── -->
+    <footer class="p-footer">
+      <p class="p-footer-text">
+        The Air Conditioning Company · Unit 2, Bittacy Business Park, Bittacy Hill, Mill Hill East, London NW7 1BA<br />
+        Tel <a href="tel:02083466000">020 8346 6000</a> · Email <a href="mailto:info@airconco.com">info@airconco.com</a> · <a href="https://www.airconco.com">www.airconco.com</a>
+      </p>
+    </footer>
+
+    <script>
+      const switcher = document.getElementById('colour-switcher');
+      if (switcher) {
+        const photo = document.getElementById('unit-photo') as HTMLImageElement;
+        switcher.addEventListener('click', (e) => {
+          const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.colour-pill');
+          if (!btn || !btn.dataset.photo) return;
+          photo.classList.add('switching');
+          setTimeout(() => {
+            photo.src = btn.dataset.photo!;
+            photo.onload = () => photo.classList.remove('switching');
+          }, 150);
+          switcher.querySelectorAll('.colour-pill').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      }
+    </script>
+
+  </body>
+</html>

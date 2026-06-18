@@ -553,6 +553,8 @@ body.prices-hidden .cbtn-price {
 .btn-primary:hover { background: var(--blue-dark); }
 .btn-outline { background: var(--white); color: var(--navy); border: 1px solid var(--border-dark); }
 .btn-outline:hover { background: var(--surface); }
+.btn-brochure { background: var(--navy); color: #fff; border: none; }
+.btn-brochure:hover { background: #1a2c44; }
 
 .related {
   margin-top: 20px;

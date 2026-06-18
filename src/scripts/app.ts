@@ -328,10 +328,11 @@ function miniCard(u: Unit, kind: Tab, sub: string): string {
   </button>`;
 }
 
-function modalShell(u: Unit, chips: string, specs: string, related: string, extra = ''): string {
+function modalShell(u: Unit, chips: string, specs: string, related: string, extra = '', extraLinks = ''): string {
   const links =
     (u.pdf ? `<a class="btn btn-primary" href="${esc(u.pdf)}" target="_blank" rel="noopener">📄 Spec sheet (PDF)</a>` : '') +
-    (u.web ? `<a class="btn btn-outline" href="${esc(u.web)}" target="_blank" rel="noopener">Manufacturer page ↗</a>` : '');
+    (u.web ? `<a class="btn btn-outline" href="${esc(u.web)}" target="_blank" rel="noopener">Manufacturer page ↗</a>` : '') +
+    extraLinks;
   return `
     <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
     <div class="modal-img" data-fallback='${NOIMG.replace(/'/g, '&#39;')}'>${img(u.photo, u.model)}</div>
@@ -385,7 +386,8 @@ function openIndoor(u: IndoorUnit) {
             <span class="dot" style="background:${esc(v.colourHex)}"></span>${esc(v.colour)} <span class="cbtn-price">· ${gbp(v.trade)}</span></button>`)
           .join('')}</div>`
       : '';
-  modal.innerHTML = modalShell(u, chips, specs, related, colourRow);
+  const brochureLink = `<a class="btn btn-outline" href="/product/${encodeURIComponent(u.model)}" target="_blank" rel="noopener">Brochure ↗</a>`;
+  modal.innerHTML = modalShell(u, chips, specs, related, colourRow, brochureLink);
   const lnk = modal.querySelector('#link-ms');
   if (lnk) {
     lnk.addEventListener('click', (e) => {
