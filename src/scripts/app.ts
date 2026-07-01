@@ -35,6 +35,57 @@ const state = {
   filters: { indoor: emptyFilters(), outdoor: emptyFilters(), multi: emptyFilters() } as Record<Tab, Filters>,
 };
 
+// ---------- URL sync ----------
+function buildQS(): string {
+  const p = new URLSearchParams();
+  if (state.tab !== 'indoor') p.set('tab', state.tab);
+  if (state.search) p.set('q', state.search);
+  if (state.sort !== 'default') p.set('sort', state.sort);
+  const f = state.filters[state.tab];
+  if (f.manufacturer) p.set('manufacturer', f.manufacturer);
+  if (f.coolKw) p.set('coolKw', f.coolKw);
+  if (state.tab === 'indoor') {
+    if (f.type) p.set('type', f.type);
+    if (f.group) p.set('group', f.group);
+    if (f.range) p.set('range', f.range);
+    if (f.colour) p.set('colour', f.colour);
+    if (f.msOnly) p.set('msOnly', '1');
+  }
+  if (state.tab === 'multi' && f.maxIndoor) p.set('maxIndoor', f.maxIndoor);
+  const qs = p.toString();
+  return qs ? `?${qs}` : location.pathname;
+}
+
+let urlSyncEnabled = false;
+function syncUrl() { history.replaceState(null, '', buildQS()); }
+
+function parseUrlState() {
+  const p = new URLSearchParams(location.search);
+  const tabParam = p.get('tab') as Tab;
+  if (tabParam === 'indoor' || tabParam === 'outdoor' || tabParam === 'multi') {
+    state.tab = tabParam;
+  } else {
+    // backward-compat: old hash-only links like #multi
+    const hashTab = location.hash.replace('#', '') as Tab;
+    if (hashTab === 'outdoor' || hashTab === 'multi') state.tab = hashTab;
+  }
+  const q = p.get('q'); if (q) state.search = q;
+  const sort = p.get('sort'); if (sort) state.sort = sort;
+  const f = state.filters[state.tab];
+  const mfr = p.get('manufacturer'); if (mfr) f.manufacturer = mfr;
+  const coolKw = p.get('coolKw'); if (coolKw) f.coolKw = coolKw;
+  if (state.tab === 'indoor') {
+    const type = p.get('type'); if (type) f.type = type;
+    const group = p.get('group'); if (group) f.group = group;
+    const range = p.get('range'); if (range) f.range = range;
+    const colour = p.get('colour'); if (colour) f.colour = colour;
+    if (p.get('msOnly') === '1') f.msOnly = true;
+  }
+  if (state.tab === 'multi') {
+    const maxIndoor = p.get('maxIndoor'); if (maxIndoor) f.maxIndoor = maxIndoor;
+  }
+}
+
 // ---------- helpers ----------
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) =>
@@ -303,6 +354,7 @@ function renderGrid() {
   const n = activeFilterCount();
   badge.textContent = String(n);
   badge.classList.toggle('on', n > 0);
+  if (urlSyncEnabled) syncUrl();
 }
 
 // ---------- modal ----------
@@ -463,9 +515,9 @@ function openModalFor(u: Unit, kind: Tab = state.tab) {
   else if (kind === 'outdoor') openOutdoor(u as OutdoorUnit);
   else openMulti(u as MultiUnit);
 
-  history.pushState({ unit: u.id, kind }, '', `#${kind}/${encodeURIComponent(u.id)}`);
+  history.pushState({ unit: u.id, kind }, '', `${buildQS()}#${kind}/${encodeURIComponent(u.id)}`);
 
-  modal.querySelector('#modal-close')!.addEventListener('click', closeModal);
+  modal.querySelector('#modal-close')!.addEventListener('click', () => closeModal());
   modal.querySelectorAll<HTMLButtonElement>('.cbtn').forEach((b) => {
     b.addEventListener('click', () => {
       const v = DATA.indoor.find((x) => x.id === b.dataset.vid);
@@ -490,10 +542,10 @@ function openModalFor(u: Unit, kind: Tab = state.tab) {
   document.body.style.overflow = 'hidden';
 }
 
-function closeModal() {
+function closeModal(updateHistory = true) {
   backdrop.classList.remove('open');
   document.body.style.overflow = '';
-  history.pushState(null, '', `#${state.tab}`);
+  if (updateHistory) history.pushState(null, '', buildQS());
 }
 
 backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
@@ -546,7 +598,6 @@ function switchTab(tab: Tab) {
   document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
     t.classList.toggle('active', t.dataset.tab === tab)
   );
-  history.replaceState(null, '', `#${tab}`);
   renderFilterPanel();
   renderGrid();
 }
@@ -734,9 +785,9 @@ function renderProductPage(unit: Unit, kind: Tab) {
     document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
       t.classList.toggle('active', t.dataset.tab === state.tab)
     );
-    history.pushState(null, '', `#${kind}`);
     renderFilterPanel();
     renderGrid();
+    history.pushState(null, '', buildQS());
   });
 
   document.getElementById('pp-img')?.addEventListener('click', () => {
@@ -793,7 +844,7 @@ window.addEventListener('popstate', () => {
         if (kind === 'indoor') openIndoor(unit as IndoorUnit);
         else if (kind === 'outdoor') openOutdoor(unit as OutdoorUnit);
         else openMulti(unit as MultiUnit);
-        modal.querySelector('#modal-close')!.addEventListener('click', closeModal);
+        modal.querySelector('#modal-close')!.addEventListener('click', () => closeModal());
         modal.querySelectorAll<HTMLButtonElement>('.cbtn').forEach((b) => {
           b.addEventListener('click', () => {
             const v = DATA.indoor.find((x) => x.id === b.dataset.vid);
@@ -816,12 +867,13 @@ window.addEventListener('popstate', () => {
       return;
     }
   }
-  // tab-only or empty hash
+  // No unit in hash — close modal/product page without touching history (we're already in popstate)
   if (productPageActive) {
     showGridView();
   } else {
-    closeModal();
+    closeModal(false);
   }
+  // Support old-style hash tab links (e.g. #multi) for backward compat
   const tab = raw as Tab;
   if (tab === 'indoor' || tab === 'outdoor' || tab === 'multi') {
     state.tab = tab;
@@ -838,6 +890,9 @@ $('#count-indoor').textContent = String(DATA.indoor.length);
 $('#count-outdoor').textContent = String(DATA.outdoor.length);
 $('#count-multi').textContent = String(DATA.multi.length);
 
+// Read query-param filter state first, then check for a unit in the hash
+parseUrlState();
+
 function parseInitialHash() {
   const raw = location.hash.replace('#', '');
   const slashIdx = raw.indexOf('/');
@@ -851,17 +906,24 @@ function parseInitialHash() {
       return { unit, kind };
     }
   }
-  const tab = raw as Tab;
-  if (tab === 'outdoor' || tab === 'multi') state.tab = tab;
   return null;
 }
 
 const initUnit = parseInitialHash();
+
+// Pre-fill toolbar inputs from URL state
+($('#search') as HTMLInputElement).value = state.search;
+($('#sort') as HTMLSelectElement).value = state.sort;
+
 document.querySelectorAll<HTMLButtonElement>('.tab').forEach((t) =>
   t.classList.toggle('active', t.dataset.tab === state.tab)
 );
 renderFilterPanel();
 renderGrid();
+
+// Enable URL syncing for all future interactions (not during initial render)
+urlSyncEnabled = true;
+
 if (initUnit) {
   renderProductPage(initUnit.unit, initUnit.kind);
 }
