@@ -105,6 +105,7 @@ const payload = JSON.stringify({
           <input class="admin-input" id="admin-file" type="file" accept=".csv,text/csv" required />
 
             <button class="admin-submit" id="admin-submit" type="submit">Upload</button>
+            <p id="admin-status" class="admin-status"></p>
         </form>
 
         <!-- Rebuild progress shown after successful upload -->
@@ -129,7 +130,6 @@ const payload = JSON.stringify({
         const trigger  = document.getElementById('admin-trigger')!;
         const closeBtn = document.getElementById('admin-close')!;
         const form     = document.getElementById('admin-form') as HTMLFormElement;
-        const status   = document.getElementById('admin-status')!;
         const submit   = document.getElementById('admin-submit') as HTMLButtonElement;
 
         let clickCount = 0;
@@ -156,7 +156,9 @@ const payload = JSON.stringify({
           backdrop.setAttribute('aria-hidden', 'true');
           backdrop.style.display = 'none';
           form.reset();
-          setStatus('', '');
+          const statusEl = document.getElementById('admin-status')!;
+          statusEl.textContent = '';
+          statusEl.className = 'admin-status';
         }
 
         closeBtn.addEventListener('click', closeAdmin);
