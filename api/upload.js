@@ -41,6 +41,7 @@ export default async function handler(req, res) {
     await put(`${type}.csv`, csvText, {
       access: 'public',
       addRandomSuffix: false,
+      allowOverwrite: true,
       contentType: 'text/csv',
       token,
     });
